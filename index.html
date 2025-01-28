@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales & Occupancy Dashboard</title>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .custom-table th, .custom-table td {
+            border: 1px solid #e5e7eb;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-2xl font-bold mb-6 text-gray-800">Sales & Occupancy Report Generator</h1>
+            
+            <!-- Input Form -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <input type="month" id="reportMonth" class="border rounded p-2">
+                <button onclick="addEntry()" class="bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600">
+                    Add New Entry
+                </button>
+            </div>
+
+            <!-- Data Entry Table -->
+            <div class="overflow-x-auto">
+                <table class="custom-table">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th>Client Name</th>
+                            <th>Brand Name</th>
+                            <th>Location</th>
+                            <th>Duration (Days)</th>
+                            <th>Rate</th>
+                            <th>Negotiated Rate</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTable"></tbody>
+                </table>
+            </div>
+
+            <!-- Export Button -->
+            <div class="mt-6 flex justify-end">
+                <button onclick="exportToExcel()" class="bg-green-500 text-white rounded px-4 py-2 hover:bg-green-600">
+                    <i class="bi bi-file-earmark-excel me-2"></i> Export to Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let data = [];
+
+        function addEntry() {
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="border rounded p-1 w-full" placeholder="Client Name"></td>
+                <td><input type="text" class="border rounded p-1 w-full" placeholder="Brand Name"></td>
+                <td><input type="text" class="border rounded p-1 w-full" placeholder="Location"></td>
+                <td><input type="number" class="border rounded p-1 w-full" placeholder="Duration"></td>
+                <td><input type="number" class="border rounded p-1 w-full" placeholder="Rate"></td>
+                <td><input type="number" class="border rounded p-1 w-full" placeholder="Negotiated Rate"></td>
+                <td>
+                    <button onclick="saveRow(this)" class="text-green-500 hover:text-green-700 mr-2">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button onclick="deleteRow(this)" class="text-red-500 hover:text-red-700">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            document.getElementById('dataTable').appendChild(newRow);
+        }
+
+        function saveRow(btn) {
+            const row = btn.closest('tr');
+            const inputs = row.querySelectorAll('input');
+            const entry = {
+                clientName: inputs[0].value,
+                brandName: inputs[1].value,
+                location: inputs[2].value,
+                duration: inputs[3].value,
+                rate: inputs[4].value,
+                negotiatedRate: inputs[5].value
+            };
+            data.push(entry);
+            
+            // Convert inputs to text
+            const cells = row.cells;
+            for (let i = 0; i < cells.length - 1; i++) {
+                cells[i].textContent = inputs[i].value;
+            }
+            
+            // Update save button to edit button
+            cells[cells.length - 1].innerHTML = `
+                <button onclick="editRow(this)" class="text-blue-500 hover:text-blue-700 mr-2">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button onclick="deleteRow(this)" class="text-red-500 hover:text-red-700">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+        }
+
+        function editRow(btn) {
+            const row = btn.closest('tr');
+            const cells = row.cells;
+            const values = [];
+            
+            // Store current values
+            for (let i = 0; i < cells.length - 1; i++) {
+                values.push(cells[i].textContent);
+            }
+            
+            // Convert cells to inputs
+            for (let i = 0; i < cells.length - 1; i++) {
+                cells[i].innerHTML = `<input type="text" class="border rounded p-1 w-full" value="${values[i]}">`;
+            }
+            
+            // Update edit button to save button
+            cells[cells.length - 1].innerHTML = `
+                <button onclick="saveRow(this)" class="text-green-500 hover:text-green-700 mr-2">
+                    <i class="bi bi-check-lg"></i>
+                </button>
+                <button onclick="deleteRow(this)" class="text-red-500 hover:text-red-700">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+        }
+
+        function deleteRow(btn) {
+            const row = btn.closest('tr');
+            const index = Array.from(row.parentNode.children).indexOf(row);
+            data.splice(index, 1);
+            row.remove();
+        }
+
+        function exportToExcel() {
+            const month = document.getElementById('reportMonth').value;
+            if (!month) {
+                alert('Please select a month first!');
+                return;
+            }
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Sales Report");
+            
+            // Generate filename with month
+            const filename = `Sales_Report_${month}.xlsx`;
+            XLSX.writeFile(wb, filename);
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
